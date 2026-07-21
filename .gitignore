@@ -51,6 +51,12 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# Data -- too large to be in remote. 
+data/ 
+
+# Artifacts of training 
+artifacts/
+
 # Translations
 *.mo
 *.pot
