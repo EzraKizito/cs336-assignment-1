@@ -93,10 +93,10 @@ def train_bpe_tokenizer(
     # Pretokenization step
     parallel_master_counter = Counter()
     with open(file_path, "rb") as f:
-        num_processes = cpu_count()
+        num_processes = 4
         boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
 
-        with Pool() as pool: 
+        with Pool(processes=num_processes) as pool: 
             results = pool.starmap(process_bound_pretokenization, zip(boundaries[:-1], boundaries[1:], repeat(file_path), repeat(special_tokens)))
 
         for child_counter in results: 
