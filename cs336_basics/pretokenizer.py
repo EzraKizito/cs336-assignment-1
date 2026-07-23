@@ -164,8 +164,30 @@ def train_bpe_tokenizer(
             word_splits[word] = new_word_splits
     
     return vocabulary, merges
-    
-## Usage
+
+def get_folder_size_pathlib(folder_path):
+    root = Path(folder_path)
+    # Recursively match all files using rglob
+    return sum(f.stat().st_size for f in root.rglob('*') if f.is_file())
+
+def format_byte_size(size: float) -> str:
+    for unit in ["B", "KB", "MB", "GB", "TB", "PB"]:
+        if abs(size) < 1024.0:
+            return f"{size:.2f} {unit}"
+        size /= 1024.0
+    return f"{size:.2f} PB"  
+
+def format_time_duration(seconds: float) -> str:
+    units = [("s", 60.0), ("m", 60.0), ("h", 24.0), ("d", 365.0)]
+
+    val = float(seconds)
+    for unit, step in units:
+        if abs(val) < step:
+            return f"{val:.2f} {unit}"
+        val /= step
+
+    return f"{val:.2f} y" 
+
 if __name__ == '__main__':
     # Multithreading best practices
     import os
@@ -174,26 +196,56 @@ if __name__ == '__main__':
     os.environ["OMP_NUM_THREADS"] = "1"
 
     # Training on TinyStories
+    print("\n############ TRAINING ON TINY STORIES #################\n")
+    print("\nBeginning training tokenizer on Tiny Stories Dataset...\n")
     start_time = time.time()
+
     tiny_stories_vocabulary, tiny_stories_merges = train_bpe_tokenizer(
         "data/TinyStoriesV2-GPT4-train.txt", 
         vocab_size=10000,
         special_tokens=["<|endoftext|>"]
     )
     end_time = time.time()
-    print(f"Training BPE tokenizer on tiny stories took {end_time - start_time} seconds\n")
-    
+    print(f"\nTraining BPE tokenizer on tiny stories took {format_time_duration(end_time - start_time)}\n")
+
+    print(f"\nSaving to Disk...\n")
+    save_start_time = time.time()
     os.makedirs("artifacts/tokenizer/tinystories", exist_ok=True)
     with open("artifacts/tokenizer/tinystories/vocab.pkl", "wb") as f: 
         pickle.dump(tiny_stories_vocabulary, f)
     
     with open("artifacts/tokenizer/tinystories/merges.pkl", "wb") as f: 
         pickle.dump(tiny_stories_merges, f)
-    
-    def get_folder_size_pathlib(folder_path):
-        root = Path(folder_path)
-        # Recursively match all files using rglob
-        return sum(f.stat().st_size for f in root.rglob('*') if f.is_file())
+    save_end_time = time.time()
+    print(f"\n Saving to disk took {format_time_duration(save_end_time - save_start_time)}\n")
 
-    # Example usage:
     size_in_bytes = get_folder_size_pathlib("artifacts/tokenizer/tinystories")
+    print(f"Memory usage of tokenizer on TinyStories: {format_byte_size(size_in_bytes)}")
+
+    # Training on Open Web Text 
+    print("\n############ TRAINING ON OPEN WEB #################### \n")
+    print("\nBeginning training tokenizer on Open Web Dataset...\n")
+    start_time = time.time()
+
+    owt_vocabulary, owt_merges = train_bpe_tokenizer(
+        "data/owt_train.txt", 
+        vocab_size=32000,
+        special_tokens=["<|endoftext|>"]
+    )
+    end_time = time.time()
+    print(f"\nTraining BPE tokenizer on Open Web dataset took {format_time_duration(end_time - start_time)}\n")
+
+    print(f"\nSaving to Disk...\n")
+    save_start_time = time.time()
+    os.makedirs("artifacts/tokenizer/owt", exist_ok=True)
+    with open("artifacts/tokenizer/owt/vocab.pkl", "wb") as f: 
+        pickle.dump(owt_vocabulary, f)
+    
+    with open("artifacts/tokenizer/owt/merges.pkl", "wb") as f: 
+        pickle.dump(owt_merges, f)
+    save_end_time = time.time()
+    print(f"\n Saving to disk took {format_time_duration(save_end_time - save_start_time)}\n")
+
+    size_in_bytes = get_folder_size_pathlib("artifacts/tokenizer/owt")
+    print(f"Memory usage of tokenizer on Open Web training: {format_byte_size(size_in_bytes)}")
+    
