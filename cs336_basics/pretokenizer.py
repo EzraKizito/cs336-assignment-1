@@ -85,23 +85,40 @@ def process_bound_pretokenization(
 def train_bpe_tokenizer(
     input_path: str | os.PathLike, 
     vocab_size: int, 
-    special_tokens: list[str]
+    special_tokens: list[str], 
+    multiprocess: bool = True
 ) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]: 
     base_dir = Path(__file__).resolve().parent.parent
     file_path = os.path.join(base_dir, input_path)
     
     # Pretokenization step
-    parallel_master_counter = Counter()
+    master_counter = Counter()
+
+
     with open(file_path, "rb") as f:
-        num_processes = 4
+        num_processes = cpu_count()
         boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
 
-        with Pool(processes=num_processes) as pool: 
-            results = pool.starmap(process_bound_pretokenization, zip(boundaries[:-1], boundaries[1:], repeat(file_path), repeat(special_tokens)))
+        if multiprocess:
+            with Pool(processes=num_processes) as pool: 
+                results = pool.starmap(process_bound_pretokenization, zip(boundaries[:-1], boundaries[1:], repeat(file_path), repeat(special_tokens)))
 
-        for child_counter in results: 
-            parallel_master_counter.update(child_counter)
-
+            for child_counter in results: 
+                master_counter.update(child_counter)
+        else: 
+            for start, end in zip(boundaries[:-1], boundaries[1:]):
+                f.seek(start)
+                chunk = f.read(end - start).decode("utf-8", errors="ignore")
+                splits = _remove_special_tokens(special_tokens, chunk)
+        
+                pretokenization_pattern = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+                pretokens = []
+                for s in splits: 
+                    for p in re.finditer(pretokenization_pattern, s): 
+                        pretokens.append(p.group())
+                    
+                count_mapping = Counter(pretokens)
+                master_counter.update(count_mapping)
 
     # Initialize vocabulary
     vocabulary = {}
@@ -114,7 +131,7 @@ def train_bpe_tokenizer(
     
     # Initial word split tracker
     word_splits = {}
-    for word, count in parallel_master_counter.items():
+    for word, count in master_counter.items():
         byte_list = [bytes([b]) for b in word.encode("utf-8")]
         word_splits[word] = byte_list
         
@@ -129,7 +146,7 @@ def train_bpe_tokenizer(
             pairs = [(split[i], split[i+1]) for i in range(len(split) - 1)]
         
             for pair in pairs: 
-                pair_counts[pair] += parallel_master_counter[word] 
+                pair_counts[pair] += master_counter[word] 
         
         # Pick lexicographically greater pair
         top_pair = max(pair_counts.items(), key=lambda x: (x[1], x[0]))
@@ -195,32 +212,32 @@ if __name__ == '__main__':
     os.environ["NUMEXPR_NUM_THREADS"] = "1"
     os.environ["OMP_NUM_THREADS"] = "1"
 
-    # Training on TinyStories
-    print("\n############ TRAINING ON TINY STORIES #################\n")
-    print("\nBeginning training tokenizer on Tiny Stories Dataset...\n")
-    start_time = time.time()
+    # # Training on TinyStories
+    # print("\n############ TRAINING ON TINY STORIES #################\n")
+    # print("\nBeginning training tokenizer on Tiny Stories Dataset...\n")
+    # start_time = time.time()
 
-    tiny_stories_vocabulary, tiny_stories_merges = train_bpe_tokenizer(
-        "data/TinyStoriesV2-GPT4-train.txt", 
-        vocab_size=10000,
-        special_tokens=["<|endoftext|>"]
-    )
-    end_time = time.time()
-    print(f"\nTraining BPE tokenizer on tiny stories took {format_time_duration(end_time - start_time)}\n")
+    # tiny_stories_vocabulary, tiny_stories_merges = train_bpe_tokenizer(
+    #     "data/TinyStoriesV2-GPT4-train.txt", 
+    #     vocab_size=10000,
+    #     special_tokens=["<|endoftext|>"]
+    # )
+    # end_time = time.time()
+    # print(f"\nTraining BPE tokenizer on tiny stories took {format_time_duration(end_time - start_time)}\n")
 
-    print(f"\nSaving to Disk...\n")
-    save_start_time = time.time()
-    os.makedirs("artifacts/tokenizer/tinystories", exist_ok=True)
-    with open("artifacts/tokenizer/tinystories/vocab.pkl", "wb") as f: 
-        pickle.dump(tiny_stories_vocabulary, f)
+    # print(f"\nSaving to Disk...\n")
+    # save_start_time = time.time()
+    # os.makedirs("artifacts/tokenizer/tinystories", exist_ok=True)
+    # with open("artifacts/tokenizer/tinystories/vocab.pkl", "wb") as f: 
+    #     pickle.dump(tiny_stories_vocabulary, f)
     
-    with open("artifacts/tokenizer/tinystories/merges.pkl", "wb") as f: 
-        pickle.dump(tiny_stories_merges, f)
-    save_end_time = time.time()
-    print(f"\n Saving to disk took {format_time_duration(save_end_time - save_start_time)}\n")
+    # with open("artifacts/tokenizer/tinystories/merges.pkl", "wb") as f: 
+    #     pickle.dump(tiny_stories_merges, f)
+    # save_end_time = time.time()
+    # print(f"\n Saving to disk took {format_time_duration(save_end_time - save_start_time)}\n")
 
-    size_in_bytes = get_folder_size_pathlib("artifacts/tokenizer/tinystories")
-    print(f"Memory usage of tokenizer on TinyStories: {format_byte_size(size_in_bytes)}")
+    # size_in_bytes = get_folder_size_pathlib("artifacts/tokenizer/tinystories")
+    # print(f"Memory usage of tokenizer on TinyStories: {format_byte_size(size_in_bytes)}")
 
     # Training on Open Web Text 
     print("\n############ TRAINING ON OPEN WEB #################### \n")
@@ -230,7 +247,8 @@ if __name__ == '__main__':
     owt_vocabulary, owt_merges = train_bpe_tokenizer(
         "data/owt_train.txt", 
         vocab_size=32000,
-        special_tokens=["<|endoftext|>"]
+        special_tokens=["<|endoftext|>"], 
+        multiprocess=False
     )
     end_time = time.time()
     print(f"\nTraining BPE tokenizer on Open Web dataset took {format_time_duration(end_time - start_time)}\n")
