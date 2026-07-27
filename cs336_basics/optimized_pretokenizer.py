@@ -149,6 +149,7 @@ def optimized_train_bpe_tokenizer(
             pair = (split[i], split[i+1])
             pair_counts[pair] += count
             inverted_index[pair].add(word_id)
+
     bk_et = time.time()
     print(f"Creating counts took {format_time_duration(bk_et - bk_st)}\n")
     print(f"Word split size: {format_byte_size(sys.getsizeof(word_splits))}\n")
@@ -159,14 +160,13 @@ def optimized_train_bpe_tokenizer(
     print("\nAdding to vocabulary...\n")
     vocab_st = time.time()
     while len(vocabulary) < vocab_size: 
-        # Reinitialize pair counter
         if not pair_counts:
             break
         
         # Pick lexicographically greater pair
-        top_pairs = max(pair_counts.items(), key=lambda x: (x[1], x[0]))
+        top_pair = max(pair_counts.items(), key=lambda x: (x[1], x[0]))
 
-        new_merge = top_pairs[0]
+        new_merge = top_pair[0]
         
         # Record merge and add it to vocabulary
         merges.append(new_merge)
@@ -191,7 +191,7 @@ def optimized_train_bpe_tokenizer(
             # Merge and build new splits in place
             new_split = []
             i = 0 
-            while i < len(split) - 1:
+            while i < len(split):
                 if i < len(split) - 1 and (split[i], split[i + 1]) == new_merge: 
                     new_token = split[i] + split[i+1]
                     new_split.append(new_token)
@@ -208,12 +208,12 @@ def optimized_train_bpe_tokenizer(
                 pair_counts[p] += count 
                 inverted_index[p].add(word_id)
 
-            if len(vocabulary) % 1000 == 0: 
-                now = time.time()
-                print(f"Vocab size {len(vocabulary)} achieved {format_time_duration(now - vocab_st)} after beginning vocab add time.\n")
+        if len(vocabulary) % 1000 == 0: 
+            now = time.time()
+            print(f"Vocab size {len(vocabulary)} achieved {format_time_duration(now - vocab_st)} after beginning vocab add time.")
 
-        vocab_et = time.time()
-        print(f"Vocabulary expansion took {format_time_duration(vocab_et - vocab_et)}")
+    vocab_et = time.time()
+    print(f"\nVocabulary expansion took {format_time_duration(vocab_et - vocab_et)}")
 
     return vocabulary, merges
 
@@ -230,15 +230,27 @@ def format_byte_size(size: float) -> str:
     return f"{size:.2f} PB"  
 
 def format_time_duration(seconds: float) -> str:
-    units = [("s", 60.0), ("m", 60.0), ("h", 24.0), ("d", 365.0)]
+    # Handle zero or sub-second values gracefully
+    if seconds < 1:
+        return f"{seconds:.2f}s" if seconds > 0 else "0s"
 
-    val = float(seconds)
-    for unit, step in units:
-        if abs(val) < step:
-            return f"{val:.2f} {unit}"
-        val /= step
+    seconds = int(seconds)
+    
+    days, remainder = divmod(seconds, 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, secs = divmod(remainder, 60)
 
-    return f"{val:.2f} y" 
+    parts = []
+    if days > 0:
+        parts.append(f"{days}d")
+    if hours > 0:
+        parts.append(f"{hours}h")
+    if minutes > 0:
+        parts.append(f"{minutes}m")
+    if secs > 0 or not parts:
+        parts.append(f"{secs}s")
+
+    return " ".join(parts)
 
 if __name__ == '__main__':
     # Multithreading best practices
@@ -258,7 +270,7 @@ if __name__ == '__main__':
     #     special_tokens=["<|endoftext|>"]
     # )
     # end_time = time.time()
-    # print(f"\nTraining BPE tokenizer on tiny stories took {format_time_duration(end_time - start_time)}\n")
+    # print(f"\nTraining BPE tokenizer on tiny stories took {format_time_duration(end_time - start_time)}")
 
     # print(f"\nSaving to Disk...\n")
     # save_start_time = time.time()
@@ -269,7 +281,7 @@ if __name__ == '__main__':
     # with open("artifacts/tokenizer/tinystories/merges.pkl", "wb") as f: 
     #     pickle.dump(tiny_stories_merges, f)
     # save_end_time = time.time()
-    # print(f"\n Saving to disk took {format_time_duration(save_end_time - save_start_time)}\n")
+    # print(f"\nSaving to disk took {format_time_duration(save_end_time - save_start_time)}")
 
     # size_in_bytes = get_folder_size_pathlib("artifacts/tokenizer/tinystories")
     # print(f"Memory usage of tokenizer on TinyStories: {format_byte_size(size_in_bytes)}")
@@ -286,9 +298,9 @@ if __name__ == '__main__':
         multiprocess=False
     )
     end_time = time.time()
-    print(f"\nTraining BPE tokenizer on Open Web dataset took {format_time_duration(end_time - start_time)}\n")
+    print(f"\nTraining BPE tokenizer on Open Web dataset took {format_time_duration(end_time - start_time)}")
 
-    print(f"\nSaving to Disk...\n")
+    print(f"\nSaving to Disk...")
     save_start_time = time.time()
     os.makedirs("artifacts/tokenizer/owt", exist_ok=True)
     with open("artifacts/tokenizer/owt/vocab.pkl", "wb") as f: 
@@ -297,7 +309,7 @@ if __name__ == '__main__':
     with open("artifacts/tokenizer/owt/merges.pkl", "wb") as f: 
         pickle.dump(owt_merges, f)
     save_end_time = time.time()
-    print(f"\n Saving to disk took {format_time_duration(save_end_time - save_start_time)}\n")
+    print(f"\nSaving to disk took {format_time_duration(save_end_time - save_start_time)}\n")
 
     size_in_bytes = get_folder_size_pathlib("artifacts/tokenizer/owt")
     print(f"Memory usage of tokenizer on Open Web training: {format_byte_size(size_in_bytes)}")

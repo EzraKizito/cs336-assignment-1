@@ -11,6 +11,7 @@ from torch import Tensor
 
 # Implemented functions 
 from cs336_basics.pretokenizer import train_bpe_tokenizer
+from cs336_basics.optimized_pretokenizer import optimized_train_bpe_tokenizer
 
 def run_linear(
     d_in: int,
@@ -568,6 +569,7 @@ def run_train_bpe(
     input_path: str | os.PathLike,
     vocab_size: int,
     special_tokens: list[str],
+    optimize: bool = True,
     **kwargs,
 ) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
     """Given the path to an input corpus, run train a BPE tokenizer and
@@ -591,9 +593,15 @@ def run_train_bpe(
                 representing that <token1> was merged with <token2>.
                 Merges are ordered by order of creation.
     """
+    if optimize: 
+        return optimized_train_bpe_tokenizer(
+            input_path=input_path, 
+            vocab_size=vocab_size,
+            special_tokens=special_tokens
+        )
+    
     return train_bpe_tokenizer(
         input_path=input_path, 
         vocab_size=vocab_size,
         special_tokens=special_tokens
     )
-    raise NotImplementedError
