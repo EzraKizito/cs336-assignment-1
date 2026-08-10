@@ -56,6 +56,7 @@ data/
 
 # Artifacts of training 
 artifacts/
+old/
 
 # Translations
 *.mo

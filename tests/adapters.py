@@ -11,7 +11,7 @@ from torch import Tensor
 
 # Implemented functions 
 from cs336_basics.pretokenizer import train_bpe_tokenizer
-from cs336_basics.optimized_pretokenizer import optimized_train_bpe_tokenizer
+from cs336_basics.train_bpe import optimized_train_bpe_tokenizer
 
 def run_linear(
     d_in: int,
