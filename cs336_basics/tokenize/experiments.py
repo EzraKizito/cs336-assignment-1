@@ -69,13 +69,6 @@ for _ in range(5):
 
 print(f"Average OWT tokenizer throughput: {len(owt_text.encode("utf-8"))/ (total_time_owt/ 5):.2f} bytes/second\n")
 
-def chunk_file(file_path, delimiter="<endoftext>"):
-    with open(file_path, "r", encoding="utf-8") as f:
-        content = f.read()
-    # Split and remove empty chunks or extra whitespace
-    chunks = [c.strip() for c in content.split(delimiter) if c.strip()]
-    return chunks
-
 # Encode function
 def encode(dataset: Literal["tinystories", "owt"]):
     if dataset == "owt":
@@ -100,9 +93,9 @@ def encode(dataset: Literal["tinystories", "owt"]):
                 f.seek(start)
                 chunk = f.read(end - start).decode("utf-8")
 
-                documents = [c for c in chunk.split("<endoftext>")]
+                # TODO: Look into np.fromiter for a more memory efficient implementation
                 ids = []
-                for id_sequence in tokenizer.encode_iterable(documents):
+                for id_sequence in tokenizer.encode_iterable([chunk]):
                     ids.append(id_sequence)
                 numpy_ids = np.array(ids, dtype=np.uint16)
 
