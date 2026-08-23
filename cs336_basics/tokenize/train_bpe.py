@@ -212,6 +212,8 @@ def optimized_train_bpe_tokenizer(
 
 def get_folder_size_pathlib(folder_path):
     root = Path(folder_path)
+    if root.is_file():
+        return root.stat().st_size
     # Recursively match all files using rglob
     return sum(f.stat().st_size for f in root.rglob('*') if f.is_file())
 
