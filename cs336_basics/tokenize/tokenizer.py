@@ -1,4 +1,4 @@
-from train_bpe import PRETOKENIZATION_PATTERN
+from cs336_basics.tokenize.train_bpe import PRETOKENIZATION_PATTERN
 
 from typing import Optional, Iterable, Iterator, Any
 from collections import Counter
