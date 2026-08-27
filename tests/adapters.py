@@ -14,6 +14,9 @@ from cs336_basics.tokenize.train_bpe import optimized_train_bpe_tokenizer
 from cs336_basics.tokenize.tokenizer import BPETokenizer
 from cs336_basics.transformer.linear import HomeCookedLinear
 from cs336_basics.transformer.embedding import HomeCookedEmbedding
+from cs336_basics.transformer.rmsnorm import HomeCookedRMSNorm
+from cs336_basics.transformer.ffn import FeedForwardNetwork
+from cs336_basics.transformer.rope import RotaryPositionalEmbedding
 
 def run_linear(
     d_in: int,
@@ -90,7 +93,13 @@ def run_swiglu(
     # swiglu.w1.weight.data = w1_weight
     # swiglu.w2.weight.data = w2_weight
     # swiglu.w3.weight.data = w3_weight
-    raise NotImplementedError
+    ffn = FeedForwardNetwork(d_model, d_ff)
+    ffn.load_state_dict({
+        "w1_weight": w1_weight, 
+        "w2_weight": w2_weight, 
+        "w3_weight": w3_weight
+    })
+    return ffn.forward(in_features)
 
 
 def run_scaled_dot_product_attention(
@@ -207,7 +216,8 @@ def run_rope(
     Returns:
         Float[Tensor, " ... sequence_length d_k"]: Tensor with RoPEd input.
     """
-    raise NotImplementedError
+    rope = RotaryPositionalEmbedding(theta, d_k, max_seq_len)
+    return rope.forward(in_query_or_key, token_positions)
 
 
 def run_transformer_block(
@@ -385,7 +395,9 @@ def run_rmsnorm(
         Float[Tensor,"... d_model"]: Tensor of with the same shape as `in_features` with the output of running
         RMSNorm of the `in_features`.
     """
-    raise NotImplementedError
+    rmsnorm = HomeCookedRMSNorm(d_model, eps)
+    rmsnorm.load_state_dict({"weight": weights})
+    return rmsnorm.forward(in_features)
 
 
 def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
