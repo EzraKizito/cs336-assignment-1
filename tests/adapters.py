@@ -17,6 +17,7 @@ from cs336_basics.transformer.embedding import HomeCookedEmbedding
 from cs336_basics.transformer.rmsnorm import HomeCookedRMSNorm
 from cs336_basics.transformer.ffn import FeedForwardNetwork
 from cs336_basics.transformer.rope import RotaryPositionalEmbedding
+from cs336_basics.transformer.attention import softmax, scaled_dot_product_attention, CausalMultiHeadSelfAttention
 
 def run_linear(
     d_in: int,
@@ -120,7 +121,7 @@ def run_scaled_dot_product_attention(
     Returns:
         Float[Tensor, " ... queries d_v"]: Output of SDPA
     """
-    raise NotImplementedError
+    return scaled_dot_product_attention(Q, K, V, mask)
 
 
 def run_multihead_self_attention(
@@ -154,7 +155,18 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_model"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    causal_mha = CausalMultiHeadSelfAttention(
+        use_rope=False, 
+        d_model=d_model, 
+        num_heads=num_heads
+    )
+    causal_mha.load_state_dict({
+        "q_proj_weight": q_proj_weight, 
+        "k_proj_weight": k_proj_weight, 
+        "v_proj_weight": v_proj_weight, 
+        "o_proj_weight": o_proj_weight
+    })
+    return causal_mha.forward(in_features)
 
 
 def run_multihead_self_attention_with_rope(
@@ -194,7 +206,21 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_model"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    causal_mha = CausalMultiHeadSelfAttention(
+        use_rope=True,
+        theta=theta,
+        max_seq_len=max_seq_len,
+        token_positions=token_positions, 
+        d_model=d_model, 
+        num_heads=num_heads
+    )
+    causal_mha.load_state_dict({
+        "q_proj_weight": q_proj_weight, 
+        "k_proj_weight": k_proj_weight, 
+        "v_proj_weight": v_proj_weight, 
+        "o_proj_weight": o_proj_weight
+    })
+    return causal_mha.forward(in_features)
 
 
 def run_rope(
@@ -450,7 +476,7 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
         Float[Tensor, "..."]: Tensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    raise NotImplementedError
+    return softmax(in_features, dim)
 
 
 def run_cross_entropy(

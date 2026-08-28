@@ -29,6 +29,12 @@ class FeedForwardNetwork(nn.Module):
             torch.empty((self.d_ff, self.d_model), **parameter_kwargs)
         )
 
+        # Initialize weights
+        sigma = 2/(self.d_ff + self.d_model)
+        nn.init.trunc_normal_(self.w1_weight, std=sigma, a=-3*sigma, b=3*sigma)
+        nn.init.trunc_normal_(self.w2_weight, std=sigma, a=-3*sigma, b=3*sigma)
+        nn.init.trunc_normal_(self.w3_weight, std=sigma, a=-3*sigma, b=3*sigma)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor: 
         in_dtype = x.dtype 
         x = x.to(torch.float32)
