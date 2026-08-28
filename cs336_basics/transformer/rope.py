@@ -46,10 +46,8 @@ class RotaryPositionalEmbedding(nn.Module):
         c = torch.cos(relevant_angles)
         s = torch.sin(relevant_angles)
 
-        x_r = rearrange(x, "... seq_len (d_half c) -> ... seq_len d_half c", c=2)
-        top = c * x_r[..., 0] - s * x_r[..., 1] 
-        bottom = s * x_r[..., 0] + c * x_r[..., 1]
-
-        rotated = rearrange([top, bottom], 'i ... s -> ... (s i)') # batch seq_len d
-        # Return rotated vector
+        x = rearrange(x, "... seq_len (d_half c) -> ... seq_len d_half c", c=2) # `batch seq-len d_half 2`
+        rotation = rearrange([c, -s, s, c], "(h w) ... -> ... h w", h=2, w=2) # batch seq_len d_half 2 2
+        rotated = einsum(rotation, x, "... h w, ... w -> ... h")
+        rotated = rearrange(rotated, "... d_2 c -> ... (d_2 c)")
         return rotated
