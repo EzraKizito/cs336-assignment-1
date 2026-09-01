@@ -34,9 +34,7 @@ def scaled_dot_product_attention(
 class CausalMultiHeadSelfAttention(nn.Module):
 	def __init__(
 		self,
-		use_rope: bool, 
-		theta: Optional[float] = None,
-		max_seq_len: Optional[int] = None,
+		rope: Optional[RotaryPositionalEmbedding] = None,
 		token_positions: Optional[torch.Tensor] = None,
 		d_model: int = 64,
 		num_heads: int = 8, 
@@ -47,21 +45,13 @@ class CausalMultiHeadSelfAttention(nn.Module):
 		self.d_model = d_model
 		self.num_heads = num_heads
 		assert self.d_model % self.num_heads == 0
-		self.use_rope = use_rope
-		self.theta = theta
-		self.max_seq_len = max_seq_len
-		self.token_positions = token_positions
-		if self.use_rope: 
-			assert self.theta is not None, "Theta must be provided if RoPE is used"
-			assert self.max_seq_len is not None, "Max sequence length must be provided if RoPE is used"
-			self.rope = RotaryPositionalEmbedding(
-				theta=self.theta, 
-				d_k=self.d_model//self.num_heads, 
-				max_seq_len=self.max_seq_len, 
-				device=device
-			)
 
-		parameter_kwargs = {"device": device, "dtype": dtype}
+		self.rope = rope
+		self.token_positions = token_positions
+		self.device = device 
+		self.dtype = dtype
+
+		parameter_kwargs = {"device": self.device, "dtype": self.dtype}
 		# Initialize the weight parameters for down-projecting from d_model to d_k
 		self.q_proj_weight = nn.Parameter(
 			torch.empty((d_model, d_model), **parameter_kwargs)
@@ -86,7 +76,7 @@ class CausalMultiHeadSelfAttention(nn.Module):
 
 		# First, we construct a mask
 		seq_len = x.shape[-2]
-		pre_mask = torch.ones(seq_len, seq_len)
+		pre_mask = torch.ones(seq_len, seq_len, device=self.device, dtype=self.dtype)
 		mask = torch.tril(pre_mask).to(torch.bool)
 
 		# Now, we rearrange projection weights into projections
@@ -113,8 +103,7 @@ class CausalMultiHeadSelfAttention(nn.Module):
 			"h d_v d_model, ... seq_len d_model -> h ... seq_len d_v"
 		)
 
-		if self.use_rope: 
-			assert self.token_positions is not None, "Token positions must be provided if RoPE is used."
+		if self.rope:
 			x_q = self.rope.forward(x_q, self.token_positions)
 			x_k = self.rope.forward(x_k, self.token_positions)
 

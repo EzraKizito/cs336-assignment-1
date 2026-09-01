@@ -11,14 +11,15 @@ class RotaryPositionalEmbedding(nn.Module):
         theta: float, 
         d_k: int, 
         max_seq_len: int, 
-        device: Optional[torch.device] = None
+        device: Optional[torch.device] = None, 
     ) -> None:
         super().__init__()
         self.theta = theta 
         self.d = d_k 
         self.max_seq_len = max_seq_len 
 
-        parameter_kwargs = {"device": device}
+
+        self.device = device
 
         # Inefficient implementation: construct full d*d matrix, store it, and 
         # pass each key and query vector through it. But matrix is sparse.
@@ -39,9 +40,13 @@ class RotaryPositionalEmbedding(nn.Module):
     def forward(
         self,
         x: torch.Tensor, 
-        token_positions: torch.Tensor
+        token_positions: Optional[torch.Tensor]
     ) -> torch.Tensor: 
-        
+
+        seq_len = x.shape[-2]
+        if token_positions is None: 
+            token_positions = torch.arange(end=seq_len, device=self.device)
+
         relevant_angles = self.angles[token_positions] # Shape is `batch seq_len d/2`
         c = torch.cos(relevant_angles)
         s = torch.sin(relevant_angles)

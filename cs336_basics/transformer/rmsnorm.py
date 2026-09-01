@@ -5,7 +5,7 @@ import torch
 from torch import nn
 from einops import reduce, einsum
 
-class HomeCookedRMSNorm(nn.Module): 
+class RMSNorm(nn.Module): 
     def __init__(
         self,
         d_model: int, 

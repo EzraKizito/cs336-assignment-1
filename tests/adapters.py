@@ -12,12 +12,13 @@ from torch import Tensor
 # Implemented functions 
 from cs336_basics.tokenize.train_bpe import optimized_train_bpe_tokenizer
 from cs336_basics.tokenize.tokenizer import BPETokenizer
-from cs336_basics.transformer.linear import HomeCookedLinear
-from cs336_basics.transformer.embedding import HomeCookedEmbedding
-from cs336_basics.transformer.rmsnorm import HomeCookedRMSNorm
+from cs336_basics.transformer.linear import Linear
+from cs336_basics.transformer.embedding import Embedding
+from cs336_basics.transformer.rmsnorm import RMSNorm
 from cs336_basics.transformer.ffn import FeedForwardNetwork
 from cs336_basics.transformer.rope import RotaryPositionalEmbedding
 from cs336_basics.transformer.attention import softmax, scaled_dot_product_attention, CausalMultiHeadSelfAttention
+from cs336_basics.transformer.transformer import TransformerBlock
 
 def run_linear(
     d_in: int,
@@ -37,7 +38,7 @@ def run_linear(
     Returns:
         Float[Tensor, "... d_out"]: The transformed output of your linear module.
     """
-    linear = HomeCookedLinear(d_in, d_out)
+    linear = Linear(d_in, d_out)
     linear.load_state_dict({"weight": weights})
     return linear.forward(in_features)
 
@@ -60,7 +61,7 @@ def run_embedding(
     Returns:
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
-    embedding = HomeCookedEmbedding(vocab_size, d_model)
+    embedding = Embedding(vocab_size, d_model)
     embedding.load_state_dict({"weight": weights})
     return embedding.forward(token_ids)
 
@@ -156,7 +157,6 @@ def run_multihead_self_attention(
         implementation with the given QKV projection weights and input features.
     """
     causal_mha = CausalMultiHeadSelfAttention(
-        use_rope=False, 
         d_model=d_model, 
         num_heads=num_heads
     )
@@ -206,10 +206,13 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_model"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    causal_mha = CausalMultiHeadSelfAttention(
-        use_rope=True,
-        theta=theta,
+    rope = RotaryPositionalEmbedding(
+        theta=theta, 
         max_seq_len=max_seq_len,
+        d_k=d_model // num_heads
+    )
+    causal_mha = CausalMultiHeadSelfAttention(
+        rope=rope,
         token_positions=token_positions, 
         d_model=d_model, 
         num_heads=num_heads
@@ -316,7 +319,31 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    rope = RotaryPositionalEmbedding(
+        theta=theta,
+        d_k=d_model//num_heads, 
+        max_seq_len=max_seq_len
+    )
+    transformer_block = TransformerBlock(
+        d_model=d_model, 
+        num_heads=num_heads, 
+        d_ff=d_ff,
+        rope=rope
+    )
+    # Load the weights
+    transformer_block.load_state_dict({
+        "attn.q_proj_weight": weights["attn.q_proj.weight"],
+        "attn.k_proj_weight": weights["attn.k_proj.weight"],
+        "attn.v_proj_weight": weights["attn.v_proj.weight"],
+        "attn.o_proj_weight": weights["attn.output_proj.weight"],
+        "ln1.weight": weights["ln1.weight"],
+        "ffn.w1_weight": weights["ffn.w1.weight"],
+        "ffn.w2_weight": weights["ffn.w2.weight"],
+        "ffn.w3_weight": weights["ffn.w3.weight"],
+        "ln2.weight": weights["ln2.weight"],
+    })
+
+    return transformer_block.forward(in_features)
 
 
 def run_transformer_lm(
@@ -421,7 +448,7 @@ def run_rmsnorm(
         Float[Tensor,"... d_model"]: Tensor of with the same shape as `in_features` with the output of running
         RMSNorm of the `in_features`.
     """
-    rmsnorm = HomeCookedRMSNorm(d_model, eps)
+    rmsnorm = RMSNorm(d_model, eps)
     rmsnorm.load_state_dict({"weight": weights})
     return rmsnorm.forward(in_features)
 

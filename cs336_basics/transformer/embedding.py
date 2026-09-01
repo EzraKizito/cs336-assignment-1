@@ -3,7 +3,7 @@ import torch
 from torch import nn 
 from typing import Optional
 
-class HomeCookedEmbedding(nn.Module):
+class Embedding(nn.Module):
     def __init__(
         self,
         num_embeddings: int, 

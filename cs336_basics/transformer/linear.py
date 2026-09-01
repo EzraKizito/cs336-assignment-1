@@ -4,7 +4,7 @@ from torch.nn import Parameter, Module
 from einops import einsum
 import torch
 
-class HomeCookedLinear(Module):
+class Linear(Module):
     def __init__(
         self,
         in_features: int, 
