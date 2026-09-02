@@ -1,10 +1,11 @@
 from typing import Optional
 
-from torch.nn import Parameter, Module
+from torch import nn
 from einops import einsum
 import torch
+import math
 
-class Linear(Module):
+class Linear(nn.Module):
     def __init__(
         self,
         in_features: int, 
@@ -18,9 +19,9 @@ class Linear(Module):
 
         parameter_kwargs = {"device": device, "dtype": dtype}
 
-        self.weight = Parameter(torch.empty((self.out_features, self.in_features), **parameter_kwargs))
+        self.weight = nn.Parameter(torch.empty((self.out_features, self.in_features), **parameter_kwargs))
         # Initialize weights
-        sigma = 2/(self.in_features + self.out_features)
+        sigma = math.sqrt(2/(self.in_features + self.out_features))
         torch.nn.init.trunc_normal_(self.weight, std=sigma, a=-3*sigma, b=3*sigma)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

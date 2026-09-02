@@ -4,6 +4,7 @@ from einops import einsum, rearrange
 from torch import nn
 
 from cs336_basics.transformer.rope import RotaryPositionalEmbedding
+from cs336_basics.transformer.linear import Linear
 
 def softmax(x: torch.Tensor, dim: int = -1):
 	maxes = torch.max(x, dim=dim, keepdim=True)[0]
@@ -53,23 +54,10 @@ class CausalMultiHeadSelfAttention(nn.Module):
 
 		parameter_kwargs = {"device": self.device, "dtype": self.dtype}
 		# Initialize the weight parameters for down-projecting from d_model to d_k
-		self.q_proj_weight = nn.Parameter(
-			torch.empty((d_model, d_model), **parameter_kwargs)
-		)
-		self.k_proj_weight = nn.Parameter(
-			torch.empty((d_model, d_model), **parameter_kwargs)
-		)
-		self.v_proj_weight = nn.Parameter(
-			torch.empty((d_model, d_model), **parameter_kwargs)
-		)
-		self.o_proj_weight = nn.Parameter(
-			torch.empty((d_model, d_model), **parameter_kwargs)
-		)
-		sigma = 2/(self.d_model + self.d_model)
-		nn.init.trunc_normal_(self.q_proj_weight, std=sigma, a=-3*sigma, b=3*sigma)
-		nn.init.trunc_normal_(self.k_proj_weight, std=sigma, a=-3*sigma, b=3*sigma)
-		nn.init.trunc_normal_(self.v_proj_weight, std=sigma, a=-3*sigma, b=3*sigma)
-		nn.init.trunc_normal_(self.o_proj_weight, std=sigma, a=-3*sigma, b=3*sigma)
+		self.q_proj = Linear(in_features=self.d_model, out_features=self.d_model, **parameter_kwargs)
+		self.k_proj = Linear(in_features=self.d_model, out_features=self.d_model, **parameter_kwargs)
+		self.v_proj = Linear(in_features=self.d_model, out_features=self.d_model, **parameter_kwargs)
+		self.o_proj = Linear(in_features=self.d_model, out_features=self.d_model, **parameter_kwargs)
 
 	def forward(self, x: torch.Tensor) -> torch.Tensor: 
 		# Perform matrix operations from x through Q, K, V matrices
@@ -79,29 +67,14 @@ class CausalMultiHeadSelfAttention(nn.Module):
 		pre_mask = torch.ones(seq_len, seq_len, device=self.device, dtype=self.dtype)
 		mask = torch.tril(pre_mask).to(torch.bool)
 
-		# Now, we rearrange projection weights into projections
-		q_proj_weight = rearrange(
-			self.q_proj_weight, "(h d_q) d_model -> h d_q d_model", h=self.num_heads
-		)
-		k_proj_weight = rearrange(
-			self.k_proj_weight, "(h d_k) d_model -> h d_k d_model", h=self.num_heads
-		)
-		v_proj_weight = rearrange(
-			self.v_proj_weight, "(h d_v) d_model -> h d_v d_model", h=self.num_heads
-		)
+		x_q = self.q_proj.forward(x) # batch seq_len d_model
+		x_k = self.k_proj.forward(x)
+		x_v = self.v_proj.forward(x)
 
-		x_q = einsum(
-			q_proj_weight, x, 
-			"h d_q d_model, ... seq_len d_model -> h ... seq_len d_q"
-		)
-		x_k = einsum(
-			k_proj_weight, x, 
-			"h d_k d_model, ... seq_len d_model -> h ... seq_len d_k"
-		)
-		x_v = einsum(
-			v_proj_weight, x, 
-			"h d_v d_model, ... seq_len d_model -> h ... seq_len d_v"
-		)
+		# Reshape to h batch seq_len d_k
+		x_q = rearrange(x_q, "... seq_len (h d_k) -> h ... seq_len d_k", h=self.num_heads)
+		x_k = rearrange(x_k, "... seq_len (h d_k) -> h ... seq_len d_k", h=self.num_heads)
+		x_v = rearrange(x_v, "... seq_len (h d_v) -> h ... seq_len d_v", h=self.num_heads)
 
 		if self.rope:
 			x_q = self.rope.forward(x_q, self.token_positions)
@@ -110,5 +83,6 @@ class CausalMultiHeadSelfAttention(nn.Module):
 		mha = scaled_dot_product_attention(x_q, x_k, x_v, mask) # h batch_size ... seq_len d_v
 		up_project_mha = rearrange(mha, "h ... d_v -> ... (h d_v)") # batch_size ... seq_len d_model
 
-		return einsum(self.o_proj_weight, up_project_mha, "d_out d_in, ... seq_len d_in -> ... seq_len d_out")
+		result = self.o_proj.forward(up_project_mha)
+		return result
 
