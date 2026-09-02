@@ -67,9 +67,10 @@ class CausalMultiHeadSelfAttention(nn.Module):
 		pre_mask = torch.ones(seq_len, seq_len, device=self.device, dtype=self.dtype)
 		mask = torch.tril(pre_mask).to(torch.bool)
 
-		x_q = self.q_proj.forward(x) # batch seq_len d_model
-		x_k = self.k_proj.forward(x)
-		x_v = self.v_proj.forward(x)
+		# Project all heads and reshape
+		x_q = self.q_proj(x) # batch seq_len d_model
+		x_k = self.k_proj(x)
+		x_v = self.v_proj(x)
 
 		# Reshape to h batch seq_len d_k
 		x_q = rearrange(x_q, "... seq_len (h d_k) -> h ... seq_len d_k", h=self.num_heads)
@@ -77,12 +78,12 @@ class CausalMultiHeadSelfAttention(nn.Module):
 		x_v = rearrange(x_v, "... seq_len (h d_v) -> h ... seq_len d_v", h=self.num_heads)
 
 		if self.rope:
-			x_q = self.rope.forward(x_q, self.token_positions)
-			x_k = self.rope.forward(x_k, self.token_positions)
+			x_q = self.rope(x_q, self.token_positions)
+			x_k = self.rope(x_k, self.token_positions)
 
 		mha = scaled_dot_product_attention(x_q, x_k, x_v, mask) # h batch_size ... seq_len d_v
 		up_project_mha = rearrange(mha, "h ... d_v -> ... (h d_v)") # batch_size ... seq_len d_model
 
-		result = self.o_proj.forward(up_project_mha)
+		result = self.o_proj(up_project_mha)
 		return result
 

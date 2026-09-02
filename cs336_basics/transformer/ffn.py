@@ -27,11 +27,11 @@ class FeedForwardNetwork(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor: 
         in_dtype = x.dtype 
         x = x.to(torch.float32)
-        w1_x = self.w1.forward(x)
+        w1_x = self.w1(x)
         silu_output = w1_x * torch.sigmoid(w1_x) 
-        w3_x = self.w3.forward(x)
+        w3_x = self.w3(x)
         l1_activations = silu_output * w3_x 
-        result = self.w2.forward(l1_activations)
+        result = self.w2(l1_activations)
 
         return result.to(in_dtype)
 
