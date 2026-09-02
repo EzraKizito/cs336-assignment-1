@@ -164,7 +164,7 @@ def run_multihead_self_attention(
         "q_proj.weight": q_proj_weight, 
         "k_proj.weight": k_proj_weight, 
         "v_proj.weight": v_proj_weight, 
-        "o_proj.weight": o_proj_weight
+        "output_proj.weight": o_proj_weight
     })
     return causal_mha.forward(in_features)
 
@@ -221,7 +221,7 @@ def run_multihead_self_attention_with_rope(
         "q_proj.weight": q_proj_weight, 
         "k_proj.weight": k_proj_weight, 
         "v_proj.weight": v_proj_weight, 
-        "o_proj.weight": o_proj_weight
+        "output_proj.weight": o_proj_weight
     })
     return causal_mha.forward(in_features)
 
@@ -331,17 +331,7 @@ def run_transformer_block(
         rope=rope
     )
     # Load the weights
-    transformer_block.load_state_dict({
-        "attn.q_proj.weight": weights["attn.q_proj.weight"],
-        "attn.k_proj.weight": weights["attn.k_proj.weight"],
-        "attn.v_proj.weight": weights["attn.v_proj.weight"],
-        "attn.o_proj.weight": weights["attn.output_proj.weight"],
-        "ln1.weight": weights["ln1.weight"],
-        "ffn.w1.weight": weights["ffn.w1.weight"],
-        "ffn.w2.weight": weights["ffn.w2.weight"],
-        "ffn.w3.weight": weights["ffn.w3.weight"],
-        "ln2.weight": weights["ln2.weight"],
-    })
+    transformer_block.load_state_dict(weights)
 
     return transformer_block.forward(in_features)
 
@@ -434,27 +424,8 @@ def run_transformer_lm(
         context_length=context_length,
         num_layers=num_layers
     )
-    def construct_state_dict():
-        state_dict = {}
-        for i in range(num_layers): 
-            state_dict[f"layers.{i}.attn.q_proj.weight"] = weights[f"layers.{i}.attn.q_proj.weight"]
-            state_dict[f"layers.{i}.attn.k_proj.weight"] = weights[f"layers.{i}.attn.k_proj.weight"]
-            state_dict[f"layers.{i}.attn.v_proj.weight"] = weights[f"layers.{i}.attn.v_proj.weight"]
-            state_dict[f"layers.{i}.attn.o_proj.weight"] = weights[f"layers.{i}.attn.output_proj.weight"]
-            state_dict[f"layers.{i}.ln1.weight"] = weights[f"layers.{i}.ln1.weight"]
-            state_dict[f"layers.{i}.ffn.w1.weight"] = weights[f"layers.{i}.ffn.w1.weight"]
-            state_dict[f"layers.{i}.ffn.w2.weight"] = weights[f"layers.{i}.ffn.w2.weight"]
-            state_dict[f"layers.{i}.ffn.w3.weight"] = weights[f"layers.{i}.ffn.w3.weight"]
-            state_dict[f"layers.{i}.ln2.weight"] = weights[f"layers.{i}.ln2.weight"]
-
-        return state_dict
     
-    lm.load_state_dict({
-        "embedding.weight": weights["token_embeddings.weight"], 
-        **construct_state_dict(), 
-        "ln_final.weight": weights["ln_final.weight"],
-        "lm_head.weight": weights["lm_head.weight"]
-    })
+    lm.load_state_dict(weights)
     return lm(in_indices)
 
 
@@ -494,7 +465,7 @@ def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
         Float[Tensor,"..."]: of with the same shape as `in_features` with the output of applying
         SiLU to each element.
     """
-    raise NotImplementedError
+    return in_features * torch.sigmoid(in_features)
 
 
 def run_get_batch(

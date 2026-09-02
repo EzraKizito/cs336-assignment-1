@@ -83,7 +83,7 @@ class TransformerLM(nn.Module):
         self.d_ff = d_ff # Hidden dim size
         self.num_layers = num_layers
         parameter_kwargs = {"device": device, "dtype": dtype}
-        self.embedding = Embedding(num_embeddings=vocab_size, embedding_dim=d_model)
+        self.token_embeddings = Embedding(num_embeddings=vocab_size, embedding_dim=d_model)
         self.rope = RotaryPositionalEmbedding(
             theta=theta,
             d_k = self.d_model // self.num_heads,
@@ -108,7 +108,7 @@ class TransformerLM(nn.Module):
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor: 
-        x = self.embedding(x)
+        x = self.token_embeddings(x)
         for layer in self.layers: 
             x = layer(x)
 

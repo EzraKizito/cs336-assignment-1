@@ -57,7 +57,7 @@ class CausalMultiHeadSelfAttention(nn.Module):
 		self.q_proj = Linear(in_features=self.d_model, out_features=self.d_model, **parameter_kwargs)
 		self.k_proj = Linear(in_features=self.d_model, out_features=self.d_model, **parameter_kwargs)
 		self.v_proj = Linear(in_features=self.d_model, out_features=self.d_model, **parameter_kwargs)
-		self.o_proj = Linear(in_features=self.d_model, out_features=self.d_model, **parameter_kwargs)
+		self.output_proj = Linear(in_features=self.d_model, out_features=self.d_model, **parameter_kwargs)
 
 	def forward(self, x: torch.Tensor) -> torch.Tensor: 
 		# Perform matrix operations from x through Q, K, V matrices
@@ -84,6 +84,6 @@ class CausalMultiHeadSelfAttention(nn.Module):
 		mha = scaled_dot_product_attention(x_q, x_k, x_v, mask) # h batch_size ... seq_len d_v
 		up_project_mha = rearrange(mha, "h ... d_v -> ... (h d_v)") # batch_size ... seq_len d_model
 
-		result = self.o_proj(up_project_mha)
+		result = self.output_proj(up_project_mha)
 		return result
 
