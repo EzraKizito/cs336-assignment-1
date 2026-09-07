@@ -38,6 +38,12 @@ class TransformerBlock(nn.Module):
             d_model=self.d_model,
             **parameter_kwargs
         )
+        self.attn = CausalMultiHeadSelfAttention(
+            rope=rope,
+            d_model=self.d_model,
+            num_heads=self.num_heads, 
+            **parameter_kwargs
+                )
         self.ln2 = RMSNorm(
             d_model=self.d_model, 
             **parameter_kwargs
@@ -45,12 +51,6 @@ class TransformerBlock(nn.Module):
         self.ffn = FeedForwardNetwork(
             d_model=self.d_model,
             d_ff=self.d_ff, 
-            **parameter_kwargs
-        )
-        self.attn = CausalMultiHeadSelfAttention(
-            rope=rope,
-            d_model=self.d_model,
-            num_heads=self.num_heads, 
             **parameter_kwargs
         )
 
