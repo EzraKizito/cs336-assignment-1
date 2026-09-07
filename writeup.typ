@@ -94,12 +94,7 @@ Memory consumed by GPT-2 XL: 6.11 GB
 
 * Language Model Head*: This accounts for $2 dot B dot S dot D_text("model") dot V$ where $V$ is vocab size. 
 
-Plugging in $S=1024, D=D_text("model")=1600, D_text("ff")=4288, B=1$, we get the following counts:
-- *RoPE*: $approx 9.8 times 10^6$ FLOPs
-- *Attention*: $approx 2.77 times 10^10$ FLOPs
-- *FFN*: $approx 4.2 times 10^10$ FLOPs
-
-which yields a total of $ approx $
+Plugging in $S=1024, D=D_text("model")=1600, D_text("ff")=4288, B=1$, we get that a forward pass takes approximately 3.517e12 FLOPs.
 === (c)
 
 FFN requires the most FLOPs, with attention following close behind. 
