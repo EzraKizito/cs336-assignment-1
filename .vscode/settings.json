@@ -1,0 +1,8 @@
+{
+    "isort.args": ["--profile", "black"], 
+    "[python]": {
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit"
+    }
+}
+}

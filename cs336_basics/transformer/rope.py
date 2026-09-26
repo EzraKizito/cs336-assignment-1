@@ -1,9 +1,9 @@
 from typing import Any, Optional
 
-import torch 
-
-from torch import nn 
+import torch
 from einops import einsum, rearrange
+from torch import nn
+
 
 class RotaryPositionalEmbedding(nn.Module): 
     def __init__(
@@ -34,7 +34,7 @@ class RotaryPositionalEmbedding(nn.Module):
             indices, torch.reciprocal(transformed_theta), 
             "seq_len, d_half -> seq_len d_half"
         )
-        self.register_buffer('angles', angles, persistent=False)
+        self.register_buffer('angles', angles.to(device=device), persistent=False)
         self.angles: torch.Tensor # satisfy linter
 
     def forward(

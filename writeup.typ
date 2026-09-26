@@ -144,3 +144,9 @@ GPT XL with context length 16834: 1.336e14 FLOPs. Proportions:
 - head -- 2.635e12 FLOPs -- 1.97 %
 
 Increasing context length also increases FLOPs (a context length increase of  $approx 16.0$x $=>$ a 37x increase in FLOPs). It also means that a higher percentage of the FLOPs occur in the attention layer. 
+
+= Section 4
+== 4.2 Optimizer Learning Rate Tuning
+
+For learning rate 1e1, we see a slow convergence to the loss optimum. For learning rate 1e2, we see a much faster convergence rate, that is, the tenth iteration only contributes a $approx 2.8e-23$ decrease in the loss. 
+For learning rate 1e3, we actually see divergence, because the learning rate is so large that we overshoot past the optimum during optimization. 

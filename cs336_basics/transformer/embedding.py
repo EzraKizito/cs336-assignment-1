@@ -1,7 +1,8 @@
-import torch
-
-from torch import nn 
 from typing import Optional
+
+import torch
+from torch import nn
+
 
 class Embedding(nn.Module):
     def __init__(

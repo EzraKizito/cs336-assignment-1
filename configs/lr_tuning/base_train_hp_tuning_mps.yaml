@@ -1,0 +1,26 @@
+name: "base_train_hp_tuning_mps"
+training_dataset: "TinyStories"
+model: 
+  checkpoint_folder: "ckpts"
+  vocab_size: 10000 
+  context_length: 256 
+  d_model: 512
+  d_ff: 1344
+  rope_theta: 10000 
+  num_layers: 4 
+  num_heads: 16
+optimizer: 
+  lr: 1.0e-3 
+  min_lr: 1.0e-4
+  weight_decay: 0.01
+  beta_1: 0.9
+  beta_2: 0.99
+  eps: 1.0e-6
+training:
+  seed: 42
+  batch_size: 32
+  warmup_steps: 200
+  total_step_count: 5000
+  max_l2_norm: 1.0
+  save_every: 1000
+  log_every: 50

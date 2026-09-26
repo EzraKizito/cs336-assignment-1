@@ -6,17 +6,18 @@
 # Input x1 is then normalized, passes through the position-wise
 # feed-forward network, then we add the skip connection to yield y
 
-from typing import Any, Optional
+from typing import Optional
 
-from torch import nn 
 import torch
+from torch import nn
 
-from cs336_basics.transformer.ffn import FeedForwardNetwork
 from cs336_basics.transformer.attention import CausalMultiHeadSelfAttention
+from cs336_basics.transformer.embedding import Embedding
+from cs336_basics.transformer.ffn import FeedForwardNetwork
+from cs336_basics.transformer.linear import Linear
 from cs336_basics.transformer.rmsnorm import RMSNorm
 from cs336_basics.transformer.rope import RotaryPositionalEmbedding
-from cs336_basics.transformer.embedding import Embedding
-from cs336_basics.transformer.linear import Linear
+
 
 class TransformerBlock(nn.Module):
     def __init__(
@@ -83,7 +84,7 @@ class TransformerLM(nn.Module):
         self.d_ff = d_ff # Hidden dim size
         self.num_layers = num_layers
         parameter_kwargs = {"device": device, "dtype": dtype}
-        self.token_embeddings = Embedding(num_embeddings=vocab_size, embedding_dim=d_model)
+        self.token_embeddings = Embedding(num_embeddings=vocab_size, embedding_dim=d_model, **parameter_kwargs)
         self.rope = RotaryPositionalEmbedding(
             theta=theta,
             d_k = self.d_model // self.num_heads,
@@ -103,7 +104,7 @@ class TransformerLM(nn.Module):
                 )
             )
 
-        self.ln_final = RMSNorm(d_model=self.d_model)
+        self.ln_final = RMSNorm(d_model=self.d_model, **parameter_kwargs)
         self.lm_head = Linear(in_features=self.d_model, out_features=vocab_size, **parameter_kwargs)
 
 

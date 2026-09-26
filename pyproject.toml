@@ -20,6 +20,9 @@ dependencies = [
     "ty>=0.0.26",
     "ruff>=0.15.8",
     "isort>=8.0.1",
+    "typer>=0.27.2",
+    "omegaconf>=2.3.1",
+    "python-dotenv>=1.2.3",
 ]
 
 [build-system]
