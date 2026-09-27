@@ -133,7 +133,7 @@ def train_fn(
             device=device,
             seed=seed
         )
-        folder = cfg["model"]["checkpoint_folder"]
+        folder = cfg["checkpoint_folder"]
         save_every = cfg["training"]["save_every"]
         log_every = cfg["training"]["log_every"]
 
@@ -198,7 +198,7 @@ def train_fn(
                 "train/loss": loss.item(),
                 "train/perplexity": math.exp(min(loss.item(), 20.0)),
                 "optimizer/lr": optimizer.current_lr, 
-                "perf/step_time": step_time,
+                "perf/step_time (ms)": step_time * 1000.0,
                 "perf/tokens_per_sec": tokens_in_batch / step_time, 
                 "perf/step_memory": step_memory
             }
@@ -231,6 +231,17 @@ def train(
     with open(config, "r") as file:
         cfg = yaml.safe_load(file)
     train_fn(config=cfg, resume_from=resume_from, load_optimizer=load_optimizer)
-            
+
+@app.command()
+def sweep(
+    sweep_config: str = typer.Option(..., "--sweep-config", "-s", help="Sweep YAML config"),
+    count: int = typer.Option(10, "--count", "-n", help="Number of runs to execute")
+):
+    with open(sweep_config, "r") as file:
+        sweep_cfg = yaml.safe_load(file)
+
+    sweep_id = wandb.sweep(sweep=sweep_cfg, project="cs336")
+    wandb.agent(sweep_id, function=train_fn, count=count)
+
 if __name__ == "__main__": 
     app()

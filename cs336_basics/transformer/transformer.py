@@ -84,6 +84,7 @@ class TransformerLM(nn.Module):
         self.d_ff = d_ff # Hidden dim size
         self.num_layers = num_layers
         parameter_kwargs = {"device": device, "dtype": dtype}
+        self.device = device
         self.token_embeddings = Embedding(num_embeddings=vocab_size, embedding_dim=d_model, **parameter_kwargs)
         self.rope = RotaryPositionalEmbedding(
             theta=theta,

@@ -1,15 +1,17 @@
-import torch
 from typing import Any, Optional
+
+import torch
 from einops import einsum, rearrange
 from torch import nn
 
-from cs336_basics.transformer.rope import RotaryPositionalEmbedding
 from cs336_basics.transformer.linear import Linear
+from cs336_basics.transformer.rope import RotaryPositionalEmbedding
 
-def softmax(x: torch.Tensor, dim: int = -1):
+
+def softmax(x: torch.Tensor, temperature: float = 1, dim: int = -1):
 	maxes = torch.max(x, dim=dim, keepdim=True)[0]
 
-	exponentiated = torch.exp(x - maxes)
+	exponentiated = torch.exp((x - maxes) / (temperature + 1e-9))
 
 	sum_exponentiated = torch.sum(exponentiated, dim=dim, keepdim=True)
 

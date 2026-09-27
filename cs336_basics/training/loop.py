@@ -40,7 +40,7 @@ def save_checkpoint(
 def load_checkpoint(
         src: str | os.PathLike | typing.BinaryIO | typing.IO[bytes], 
         model: nn.Module, 
-        optimizer: torch.optim.Optimizer,
+        optimizer: typing.Optional[torch.optim.Optimizer] = None,
         load_optimizer: bool = True
 ): 
     entire_state = torch.load(src)
@@ -48,5 +48,6 @@ def load_checkpoint(
     model_dict, optim_dict = entire_state["model"], entire_state["optimizer"]
     model.load_state_dict(model_dict)
     if load_optimizer:
+        assert optimizer is not None, "Optimizer must not be none"
         optimizer.load_state_dict(optim_dict)
     return entire_state["iteration"]
