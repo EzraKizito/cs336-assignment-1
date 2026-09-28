@@ -2,7 +2,7 @@
 import math
 import os
 import time
-from typing import Any, BinaryIO, Dict, Optional
+from typing import Any, BinaryIO, Dict, Optional, cast
 
 import numpy as np
 import torch
@@ -64,6 +64,7 @@ def train_fn(
     # Set device
     if torch.cuda.is_available():
         device = torch.device("cuda")
+        torch.set_float32_matmul_precision('high')
     elif torch.backends.mps.is_available():
         device = torch.device("mps")
     else:
@@ -77,10 +78,7 @@ def train_fn(
     ) as run:
         # Load data
         cfg = run.config
-        if cfg["training_dataset"] == "TinyStories":
-            dataset_path = "data/encoded/tinystories.dat"
-        else:
-            dataset_path = "data/encoded/owt.dat"
+        dataset_path = cfg["data"]["dataset_path"]
         dataset = np.memmap(filename=dataset_path, dtype=np.int16, mode='r')
 
         # Initialize model
@@ -94,6 +92,12 @@ def train_fn(
             num_layers=cfg["model"]["num_layers"],
             device=device
         )
+        if device == torch.device("mps"):
+            language_model = torch.compile(language_model, backend="aot_eager")
+        else: 
+            language_model = torch.compile(language_model)
+
+        language_model = cast(TransformerLM, language_model)
 
         betas = (cfg["optimizer"]["beta_1"], cfg["optimizer"]["beta_2"])
         optimizer = AdamW(
@@ -144,7 +148,7 @@ def train_fn(
             yaml.dump(cfg, file, sort_keys=False)
 
         for step in range(iteration, total_training_steps):
-            LOG_STEP = (step + 1) % log_every == 0
+            LOG_STEP = log_every > 0 and (step + 1) % log_every == 0
             log_step_metrics = {}
             
             start_time = time.time()
@@ -209,7 +213,7 @@ def train_fn(
             run.log(metrics)
 
             # Make sure save_every is a factor of total_training_steps
-            if (step + 1) % save_every == 0:
+            if save_every > 0 and (step + 1) % save_every == 0:
                 if (step + 1) == total_training_steps:
                     ckpt_path = f"{save_location}/final.pt"
                 else: 

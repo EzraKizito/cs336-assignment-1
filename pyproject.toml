@@ -23,6 +23,7 @@ dependencies = [
     "typer>=0.27.2",
     "omegaconf>=2.3.1",
     "python-dotenv>=1.2.3",
+    "modal>=1.5.5",
 ]
 
 [build-system]

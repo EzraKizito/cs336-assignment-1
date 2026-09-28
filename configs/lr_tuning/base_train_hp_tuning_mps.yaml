@@ -1,6 +1,7 @@
 name: "base_train_hp_tuning_mps"
-training_dataset: "TinyStories"
 checkpoint_folder: "ckpts"
+data:
+  dataset_path: "data/encoded/tinystories.dat"
 model: 
   vocab_size: 10000 
   context_length: 256 
