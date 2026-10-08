@@ -150,3 +150,32 @@ Increasing context length also increases FLOPs (a context length increase of  $a
 
 For learning rate 1e1, we see a slow convergence to the loss optimum. For learning rate 1e2, we see a much faster convergence rate, that is, the tenth iteration only contributes a $approx 2.8e-23$ decrease in the loss. 
 For learning rate 1e3, we actually see divergence, because the learning rate is so large that we overshoot past the optimum during optimization. 
+
+== 4.3 AdamW Resource Accounting
+=== (a)
+Peak memory is attained right at the `loss.backward()` call. We begin here; we store both the activations and the gradients. Combined, they take up $8 dot B dot S dot V$ bytes. 
+
+Now, we look at the memory usage of the optimizer AdamW; for each model parameter, we store the parameter, its gradient, and its first and second momentum values. Assuming each of these is FP32, that's 16 bytes of memory per model parameter. There are 
+
+$ N_l ( 12D^2 + 2D ) + D(V+1) $
+parameters in a model, where $N_l$ is the number of layers, $D$ is the hidden size of the model, and $V$ is the vocab size. Combining the two expressions above, we have that memory usage in bytes is given by: $ 16 (N_l ( 12D^2 + 2D ) + D(V+1)) + 8 dot B dot S dot V $
+
+=== (b)
+For GPT-2 XL, we have: 
+$ 24882022400 + 411705344 dot B$ bytes, where $B$ is batch size. 148 is the biggest batch size that can be run on a machine with 80GB VRAM. 
+
+=== (c)
+#set math.equation(numbering: "(1)")
+We use the calculations from earlier for the forward pass, which yield: 
+$ 2 B S V D + 16 B S D^2 + (8 B S D^2 + 4 B S^2 D) + 6 B S D $ <eq:forward_pass>
+For the backward pass:
+- We disregard RoPE since its state is not stored by the optimizer. 
+- We multiply everything by 2
+Which yields: 
+$ 2 (2 B S V D + 16 B S D^2 + (8 B S D^2 + 4 B S^2 D)) $ <eq:backward_pass>
+so that FLOPs during an optimizer step is @eq:forward_pass + @eq:backward_pass.
+#set math.equation(numbering: none)
+
+=== (d)
+By my calculations, it would take approximately:
+Time to train: 202d 2h 4m 22s

@@ -91,7 +91,7 @@ class AdamW(torch.optim.Optimizer):
                 m = state.get("m")
                 if m is None: 
                     m = torch.zeros_like(p)
-                v = state.get("v", torch.zeros_like(p))
+                v = state.get("v")
                 if v is None: 
                     v = torch.zeros_like(p)
                 t = state.get("t", 1)
@@ -186,7 +186,7 @@ def gradient_clipping(
         for p in parameters: 
             if p.grad is not None:
                 p.grad.mul_(clip_coef)
-        
+
 
 def main():
     run_example_sgd_sweep = False

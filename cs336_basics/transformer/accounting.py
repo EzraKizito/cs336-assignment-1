@@ -1,7 +1,10 @@
-import torch 
+from turtle import back
 
+import torch
+
+from cs336_basics.tokenize.train_bpe import format_byte_size, format_time_duration
 from cs336_basics.transformer.transformer import TransformerLM
-from cs336_basics.tokenize.train_bpe import format_byte_size
+
 
 def find_best_ff_dimension(number: float):
     x = number * 8/ 3
@@ -29,6 +32,37 @@ def format_lm_accounting(number: float):
 
 def format_pct(number: float):
     return f"{number:.2f} %"
+
+def calculate_optimize_memory_usage_gb(
+        num_layers: int, 
+        d_model: int,
+        batch_size: int,
+        vocab_size: int,
+        seq_len: int,
+):
+    model_params = num_layers* (12 * d_model**2 + 2*d_model) + d_model*(vocab_size + 1)
+    total_mem = 16*model_params + 8*batch_size*seq_len*vocab_size
+
+    return total_mem / (1024**3)
+
+def calculate_time_to_train(
+        num_layers: int = 48, 
+        d_model: int = 1600,
+        batch_size: int = 1024,
+        vocab_size: int = 50257,
+        seq_len: int = 1024,
+        training_steps = 400000,
+        capacity=4.95e14,
+        mfu=0.5
+):
+    params_, _ = lm_accounting(d=d_model, num_layers=num_layers)
+    forward_pass = batch_size * params_
+    backward_pass = 2 * forward_pass - 6 * batch_size * seq_len * d_model
+
+    total_flops = (forward_pass + backward_pass) * training_steps
+    print(f"{total_flops:.3e} FLOPs")
+    return format_time_duration(total_flops / (mfu*capacity))
+    
 
 def main():
     with torch.device("meta"):
@@ -82,6 +116,17 @@ def main():
 
     for part, proportion in new_gpt_xl_accounting[1].items():
         print(f"{part} -- {format_lm_accounting(proportion[0])} FLOPs -- {format_pct(100 * proportion[1])}")
+
+    optim_mem_usage = calculate_optimize_memory_usage_gb(
+                num_layers=48,
+                d_model=1600,
+                vocab_size=50257,
+                batch_size=148, 
+                seq_len=1024
+            )
+    print(f"Total memory used by optimizer: {optim_mem_usage} GB")
+
+    print(f"Time to train: {calculate_time_to_train()}")
 
 if __name__ == "__main__":
     main()
