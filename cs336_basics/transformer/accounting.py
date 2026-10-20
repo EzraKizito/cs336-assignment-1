@@ -57,7 +57,7 @@ def calculate_time_to_train(
 ):
     params_, _ = lm_accounting(d=d_model, num_layers=num_layers)
     forward_pass = batch_size * params_
-    backward_pass = 2 * forward_pass - 6 * batch_size * seq_len * d_model
+    backward_pass = 2 * forward_pass # - 6 * B * S * D?
 
     total_flops = (forward_pass + backward_pass) * training_steps
     print(f"{total_flops:.3e} FLOPs")

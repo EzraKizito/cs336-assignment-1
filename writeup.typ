@@ -178,4 +178,5 @@ so that FLOPs during an optimizer step is @eq:forward_pass + @eq:backward_pass.
 
 === (d)
 By my calculations, it would take approximately:
-Time to train: 202d 2h 4m 22s
+Time to train: 202d 2h 4m 38s.
+Training this model takes approximately 4.321e+21 FLOPs.  
