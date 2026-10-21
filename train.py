@@ -2,6 +2,7 @@
 import math
 import os
 import time
+from pathlib import Path
 from typing import Any, BinaryIO, Dict, Optional, cast
 
 import numpy as np
@@ -17,13 +18,14 @@ from cs336_basics.training.optimizer import (
     AdamW,
     gradient_clipping,
 )
+from cs336_basics.training.train_utils import get_allocated_memory
 from cs336_basics.transformer.transformer import TransformerLM
 
 load_dotenv()
 
 app = typer.Typer(help="CS336 Training Framework")
 
-def get_batches(x: np.ndarray, batch_size: int, context_length: int, device, seed: int = 42):
+def get_batches(x: np.ndarray, batch_size: int, context_length: int, device: torch.device, dtype: Optional[torch.dtype], seed: int = 42):
     rng = np.random.default_rng(seed)
     seq_len = context_length + 1
     total_tokens = len(x)
@@ -78,9 +80,19 @@ def train_fn(
     ) as run:
         # Load data
         cfg = run.config
+        base_name = cfg["name"]
+        lr = cfg["optimizer"]["lr"]
+        batch_size = cfg["training"]["batch_size"]
+        weight_decay = cfg["optimizer"]["weight_decay"]
+        sweep = True 
+        if sweep:
+            # run.name = f"{base_name}_LR-{lr}"
+            # run.name = f"{base_name}_Weight-Decay-{weight_decay}"
+            run.name = f"{base_name}_Batch Size-{batch_size}"
         dataset_path = cfg["data"]["dataset_path"]
         dataset = np.memmap(filename=dataset_path, dtype=np.int16, mode='r')
 
+        lm_dtype = torch.bfloat16
         # Initialize model
         language_model = TransformerLM(
             d_model=cfg["model"]["d_model"], 
@@ -90,8 +102,11 @@ def train_fn(
             vocab_size=cfg["model"]["vocab_size"], 
             context_length=cfg["model"]["context_length"], 
             num_layers=cfg["model"]["num_layers"],
-            device=device
+            device=device,
+            dtype=lm_dtype
         )
+
+        # Compilation to improve performance
         if device == torch.device("mps"):
             language_model = torch.compile(language_model, backend="aot_eager")
         else: 
@@ -99,19 +114,23 @@ def train_fn(
 
         language_model = cast(TransformerLM, language_model)
 
+        # Initialize optimizer
         betas = (cfg["optimizer"]["beta_1"], cfg["optimizer"]["beta_2"])
         optimizer = AdamW(
             params=language_model.parameters(),
             lr = cfg["optimizer"]["lr"], 
             betas=betas, 
-            weight_decay=cfg["optimizer"]["weight_decay"], 
+            weight_decay=cfg["optimizer"]["weight_decay"],
+            schedule_lr=True,
             eps=cfg["optimizer"]["eps"],
             min_lr=cfg["optimizer"]["min_lr"], 
             total_steps=cfg["training"]["total_step_count"], 
             warmup_steps=cfg["training"]["warmup_steps"]
         )
+
+        # Resume logic if needed
         iteration = 0
-        if resume_from:
+        if resume_from is not None:
             print(f"Loading checkpoint from {resume_from}...")
             iteration = load_checkpoint(
                 src=resume_from,
@@ -123,8 +142,9 @@ def train_fn(
             print(f"Beginning training from iteration {iteration}")
         else: 
             if load_optimizer:
-                print("Load optimizer set to true but resume checkpoint not provided. Ignoring flag.")
+                print("[WARN] Load optimizer set to true but resume checkpoint not provided. Ignoring flag.")
 
+        # Load data
         seed = cfg["training"]["seed"]
         batch_size = cfg["training"]["batch_size"]
         context_length = cfg["model"]["context_length"]
@@ -135,8 +155,10 @@ def train_fn(
             batch_size=batch_size,
             context_length=context_length,
             device=device,
-            seed=seed
+            seed=seed,
+            dtype=lm_dtype
         )
+        # Set up saving logic
         folder = cfg["checkpoint_folder"]
         save_every = cfg["training"]["save_every"]
         log_every = cfg["training"]["log_every"]
@@ -147,6 +169,7 @@ def train_fn(
         with open(cfg_file_path, 'w') as file: 
             yaml.dump(cfg, file, sort_keys=False)
 
+        # Each training step
         for step in range(iteration, total_training_steps):
             LOG_STEP = log_every > 0 and (step + 1) % log_every == 0
             log_step_metrics = {}
@@ -158,8 +181,10 @@ def train_fn(
             loss = cross_entropy_loss(preds, targets)
             
             loss.backward()
-            assert loss.item() > 0, "Loss must be positive."
-
+            if not torch.all(torch.isfinite(loss)):
+                print("Run Diverged, Moving on to next config")
+                break
+            ### CALCULATING & LOGGING METRICS ########
             # Calculate pre-clip norms
             if LOG_STEP:
                 total_norm_sq = torch.zeros(1, device=next(language_model.parameters()).device)
@@ -196,7 +221,7 @@ def train_fn(
             tokens_in_batch = inputs.numel()
 
             # Safe memory check across backends
-            step_memory = torch.accelerator.memory.max_memory_allocated()
+            step_memory = get_allocated_memory(device)
 
             metrics = {
                 "train/loss": loss.item(),
@@ -224,11 +249,12 @@ def train_fn(
                     optimizer=optimizer,
                     iteration=step+1,
                     out=ckpt_path
-                )     
+                )   
+  
 @app.command()
 def train(
     config: str = typer.Option(..., "--config", "-c", help="Config file"),
-    resume_from: Optional[str | os.PathLike | BinaryIO] = typer.Option(None, "--resume-from", "-r", help="Checkpoint from which to resume"),
+    resume_from: Optional[Path] = typer.Option(None, "--resume-from", "-r", help="Checkpoint from which to resume"),
     load_optimizer: bool = typer.Option(False, "--load-optimizer", "-o", help="Whether to load optimizer state when loading checkpoint")
 ):
     # Load configs
@@ -245,7 +271,10 @@ def sweep(
         sweep_cfg = yaml.safe_load(file)
 
     sweep_id = wandb.sweep(sweep=sweep_cfg, project="cs336")
-    wandb.agent(sweep_id, function=train_fn, count=count)
+    try:
+        wandb.agent(sweep_id, function=train_fn, count=count)
+    finally:
+        wandb.finish()
 
 if __name__ == "__main__": 
     app()

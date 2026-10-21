@@ -1,3 +1,5 @@
+name: "CS336-WeightDecay-Sweep"
+
 method: random
 metric:
   name: train/loss
@@ -53,7 +55,7 @@ parameters:
       seed:
         value: 42
       total_step_count:
-        value: 1000
+        value: 2000
       warmup_steps:
         value: 100
       max_l2_norm:
@@ -61,4 +63,4 @@ parameters:
       save_every:
         value: 0
       log_every:
-        value: 0
+        value: 500

@@ -44,12 +44,13 @@ class RotaryPositionalEmbedding(nn.Module):
     ) -> torch.Tensor: 
 
         seq_len = x.shape[-2]
+        in_dtype = x.dtype
         if token_positions is None: 
             token_positions = torch.arange(end=seq_len, device=self.device)
 
         relevant_angles = self.angles[token_positions] # Shape is `batch seq_len d/2`
-        c = torch.cos(relevant_angles)
-        s = torch.sin(relevant_angles)
+        c = torch.cos(relevant_angles).to(in_dtype)
+        s = torch.sin(relevant_angles).to(in_dtype)
 
         x = rearrange(x, "... seq_len (d_half c) -> ... seq_len d_half c", c=2) # `batch seq-len d_half 2`
         rotation = rearrange([c, -s, s, c], "(h w) ... -> ... h w", h=2, w=2) # batch seq_len d_half 2 2

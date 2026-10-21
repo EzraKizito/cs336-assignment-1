@@ -1,10 +1,10 @@
 from typing import Optional
 
-import torch 
+import torch
+from torch import nn
 
-from torch import nn 
-from einops import einsum
 from cs336_basics.transformer.linear import Linear
+
 
 class FeedForwardNetwork(nn.Module):
     def __init__(
@@ -25,15 +25,13 @@ class FeedForwardNetwork(nn.Module):
         self.w3 = Linear(in_features=self.d_model, out_features=self.d_ff, **parameter_kwargs)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor: 
-        in_dtype = x.dtype 
-        x = x.to(torch.float32)
         w1_x = self.w1(x)
-        silu_output = w1_x * torch.sigmoid(w1_x) 
+        silu_output = w1_x * torch.sigmoid(w1_x)
         w3_x = self.w3(x)
         l1_activations = silu_output * w3_x 
         result = self.w2(l1_activations)
 
-        return result.to(in_dtype)
+        return result
 
 
         

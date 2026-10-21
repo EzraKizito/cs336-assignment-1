@@ -9,13 +9,16 @@ from cs336_basics.transformer.rope import RotaryPositionalEmbedding
 
 
 def softmax(x: torch.Tensor, temperature: float = 1, dim: int = -1):
+	in_dtype = x.dtype
 	maxes = torch.max(x, dim=dim, keepdim=True)[0]
 
 	exponentiated = torch.exp((x - maxes) / (temperature + 1e-9))
 
 	sum_exponentiated = torch.sum(exponentiated, dim=dim, keepdim=True)
 
-	return exponentiated / sum_exponentiated
+	result = exponentiated / sum_exponentiated
+	result = result.to(in_dtype)
+	return result
 
 def scaled_dot_product_attention(
 	Q: torch.Tensor, 
@@ -23,10 +26,10 @@ def scaled_dot_product_attention(
 	V: torch.Tensor, 
 	mask: Optional[torch.Tensor] = None
 ): 
-	d_k = torch.tensor(K.shape[-1], dtype=torch.float32)
+	d_k = torch.tensor(K.shape[-1], dtype=K.dtype)
 	queries_keys = einsum(Q, K, "... q d_k, ... k d_k -> ... q k") / torch.sqrt(d_k)
 	if mask is not None:
-		additive_mask = torch.where(mask, 0, -torch.inf)
+		additive_mask = torch.where(mask, 0, -torch.inf).to(dtype=K.dtype)
 		queries_keys = queries_keys + additive_mask
 	
 	weights = softmax(queries_keys)

@@ -44,6 +44,7 @@ class AdamW(torch.optim.Optimizer):
         weight_decay: float = 0, # lambda
         eps: float = 1e-8,
         # LR Scheduling Parameters
+        schedule_lr = False,
         min_lr: float = 1e-4,
         total_steps: int = 10000,
         warmup_steps: int = 500
@@ -61,21 +62,32 @@ class AdamW(torch.optim.Optimizer):
         }
 
         super().__init__(params, defaults)
+        self.schedule_lr = schedule_lr
         self.current_step = 0
         self.current_lr = min_lr
+        for group in self.param_groups:
+            for p in group["params"]:
+                state = self.state[p]
+
+                state["master_weights"] = p.detach().clone().float().to(p.device)
+
+                state["m"] = torch.zeros_like(p, dtype=torch.float32, device=p.device)
+                state["v"] = torch.zeros_like(p, dtype=torch.float32, device=p.device)
+                state["t"] = 1
 
     @torch.no_grad()
     def step(self, closure: Optional[Callable] = None):
         loss = None if closure is None else closure()
-        for group in self.param_groups: 
-            self.current_step = int(self.current_step)
-            group["lr"] = learning_rate_schedule(
-                t=self.current_step, 
-                a_max=group["base_lr"],
-                a_min=group["min_lr"], 
-                T_w=group["warmup_steps"],
-                T_c=group["total_steps"]
-            )
+        if self.schedule_lr:
+            for group in self.param_groups: 
+                self.current_step = int(self.current_step)
+                group["lr"] = learning_rate_schedule(
+                    t=self.current_step, 
+                    a_max=group["base_lr"],
+                    a_min=group["min_lr"], 
+                    T_w=group["warmup_steps"],
+                    T_c=group["total_steps"]
+                )
         # for now, we can assume all param groups have the same lr 
         self.current_lr = self.param_groups[0]["lr"]
         for group in self.param_groups:
@@ -88,35 +100,29 @@ class AdamW(torch.optim.Optimizer):
                     continue
 
                 state = self.state[p]
-                m = state.get("m")
-                if m is None: 
-                    m = torch.zeros_like(p)
-                v = state.get("v")
-                if v is None: 
-                    v = torch.zeros_like(p)
-                t = state.get("t", 1)
+                m = state["m"]
+                v = state["v"]
+                t = state["t"]
+                master_weight = state["master_weights"]
 
                 # Compute gradient
-                grad = p.grad
+                grad = p.grad.float()
 
                 # Compute adjusted learning rate for iteration t
                 lr_t = lr * math.sqrt(1 - beta_2 ** t) / (1 - beta_1**t)
 
                 # Apply weight decay
-                p.mul_(1.0 - weight_decay * lr)
+                master_weight.mul_(1.0 - weight_decay * lr)
 
                 # Update moment estimates
-                updated_m = beta_1 * m + (1 - beta_1) * grad 
-                updated_v = beta_2 * v + (1 - beta_2) * (grad**2)
+                m.mul_(beta_1).add_(grad, alpha=(1 - beta_1))
+                v.mul_(beta_2).add_(grad**2, alpha=(1 - beta_2))
 
                 # Apply moment adjusted updates
-                step = updated_m / (torch.sqrt(updated_v) + eps)
-                p.add_(step, alpha=-lr_t)
-
-                # Update state
+                step = m / (torch.sqrt(v) + eps)
+                master_weight.add_(step, alpha=-lr_t)
+                p.copy_(master_weight)
                 state["t"] = t + 1
-                state["m"] = updated_m
-                state["v"] = updated_v
         self.current_step += 1
         return loss
 

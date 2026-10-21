@@ -1,0 +1,27 @@
+name: "toy"
+checkpoint_folder: "ckpts"
+data:
+  dataset_path: "data/encoded/tinystories.dat"
+model: 
+  vocab_size: 10000 
+  context_length: 32
+  d_model: 64
+  d_ff: 168
+  rope_theta: 10000 
+  num_layers: 1 
+  num_heads: 4
+optimizer: 
+  lr: 1.0e-3 
+  min_lr: 1.0e-4
+  weight_decay: 0.01
+  beta_1: 0.9
+  beta_2: 0.99
+  eps: 1.0e-6
+training:
+  seed: 42
+  batch_size: 4
+  warmup_steps: 10
+  total_step_count: 100
+  max_l2_norm: 1.0
+  save_every: 0
+  log_every: 0

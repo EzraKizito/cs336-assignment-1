@@ -1,3 +1,5 @@
+name: "CS336-LR-Sweep"
+
 method: random
 metric:
   name: train/loss
@@ -61,4 +63,4 @@ parameters:
       save_every:
         value: 0
       log_every:
-        value: 0
+        value: 500
