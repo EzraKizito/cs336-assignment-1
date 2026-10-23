@@ -1,7 +1,8 @@
-name: "base_train_hp_tuning_mps"
+name: "tinystories_train"
 checkpoint_folder: "ckpts"
 data:
   dataset_path: "data/encoded/tinystories.dat"
+  eval_dataset_path: "data/encoded/tinystories_valid.dat"
 model: 
   vocab_size: 10000 
   context_length: 256 
@@ -20,8 +21,9 @@ optimizer:
 training:
   seed: 42
   batch_size: 256
-  warmup_steps: 200
+  warmup_steps: 500
   total_step_count: 5000
   max_l2_norm: 1.0
   save_every: 1000
   log_every: 50
+  eval_every: 100

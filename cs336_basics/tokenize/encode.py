@@ -1,10 +1,15 @@
-from typing import Literal
-from tokenizer import BPETokenizer
-from train_bpe import find_chunk_boundaries, get_folder_size_pathlib, format_byte_size, format_time_duration
-
 import os
 import time
+from typing import Literal
+
 import numpy as np
+from tokenizer import BPETokenizer
+from train_bpe import (
+    find_chunk_boundaries,
+    format_byte_size,
+    format_time_duration,
+    get_folder_size_pathlib,
+)
 
 ts_merges = "trained_tokenizer/tinystories/merges.pkl"
 ts_vocab = "trained_tokenizer/tinystories/vocab.pkl"
@@ -37,7 +42,7 @@ def encode(
             output_path = "data/encoded/owt.dat"
         else:
             filepath = "data/owt_valid.txt"
-            output_path = "data/encode/owt_valid.dat"
+            output_path = "data/encoded/owt_valid.dat"
     else: 
         tokenizer = ts_tokenizer
         if dataset_type == "train":

@@ -1,0 +1,29 @@
+name: "openweb_train_v1"
+checkpoint_folder: "ckpts"
+data:
+  dataset_path: "data/encoded/owt.dat"
+  eval_dataset_path: "data/encoded/owt_valid.dat"
+model: 
+  vocab_size: 32000 
+  context_length: 512
+  d_model: 512
+  d_ff: 1344
+  rope_theta: 10000 
+  num_layers: 4 
+  num_heads: 16
+optimizer: 
+  lr: 2.0e-3 
+  min_lr: 5.0e-4
+  weight_decay: 0.08
+  beta_1: 0.9
+  beta_2: 0.99
+  eps: 1.0e-6
+training:
+  seed: 42
+  batch_size: 256
+  warmup_steps: 5000
+  total_step_count: 50000
+  max_l2_norm: 1.0
+  save_every: 10000
+  log_every: 1000
+  eval_every: 1000

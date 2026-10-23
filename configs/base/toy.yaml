@@ -11,8 +11,8 @@ model:
   num_layers: 1 
   num_heads: 4
 optimizer: 
-  lr: 1.0e-3 
-  min_lr: 1.0e-4
+  lr: 2.0e-3 
+  min_lr: 8.0e-4
   weight_decay: 0.01
   beta_1: 0.9
   beta_2: 0.99
@@ -25,3 +25,4 @@ training:
   max_l2_norm: 1.0
   save_every: 0
   log_every: 0
+  eval_every: 50
